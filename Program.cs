@@ -1,5 +1,7 @@
 ﻿using CommandLine;
 using System;
+using System.Net.Http;
+using System.Threading;
 
 namespace OrchestratorClient
 {
@@ -7,13 +9,15 @@ namespace OrchestratorClient
     {
         static void Main(string[] args)
         {
+            var client = new HttpClient();
+
             Parser.Default.ParseArguments<Options>(args)
                 .WithParsed<Options>(o =>
                {
-                   Console.WriteLine(o.BaseUrl);
-                   Console.WriteLine(o.TenantName);
-                   Console.WriteLine(o.Username);
-                   Console.WriteLine(o.Password);
+                   var user = new OrchestratorClient(client)
+                        .WithBasicAuthentication(o.TenancyName, o.Username, o.Username)
+                        .WithBaseUrl(o.BaseUrl)
+                        .Get<UserDto>(new Uri("/odata/Users", UriKind.Relative), new CancellationToken());
                });
         }
     }

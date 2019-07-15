@@ -11,7 +11,7 @@ namespace OrchestratorClient
         public Uri BaseUrl { get; set; }
 
         [Option('t')]
-        public string TenantName { get; set; }
+        public string TenancyName { get; set; }
 
         [Option('u')]
         public string Username { get; set; }
