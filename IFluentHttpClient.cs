@@ -6,11 +6,11 @@ using System.Threading.Tasks;
 
 namespace OrchestratorClient
 {
-    interface IFluentHttpClient
+    interface IFluentHttpClient<T>
     {
-        IFluentHttpClient WithHeaders(Dictionary<string, string> headers);
-        IFluentHttpClient WithBasicAuthentication(string tenantName, string username, string password);
-        IFluentHttpClient WithBaseUrl(Uri baseUrl);
+        IFluentHttpClient<T> WithHeaders(Dictionary<string, string> headers);
+        IFluentHttpClient<T> WithBasicAuthentication(string tenantName, string username, string password);
+        IFluentHttpClient<T> WithBaseUrl(Uri baseUrl);
 
         Task<T> Get<T>(Uri url, CancellationToken ct) where T : class;
         Task<List<T>> GetList<T>(Uri url, CancellationToken ct) where T : class;

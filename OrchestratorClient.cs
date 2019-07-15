@@ -10,13 +10,14 @@ using System.Threading.Tasks;
 
 namespace OrchestratorClient
 {
-    class OrchestratorClient: IFluentHttpClient
+    class OrchestratorClient: IFluentHttpClient<OrchestratorClient>
     {
         private readonly HttpClient _client;
         private Dictionary<string, string> Headers;
         private string TenancyName;
         private string Username;
         private string Password;
+        private int OrganzationUnitId;
         private Uri BaseUrl = new Uri("http://localhost:6234");
         private readonly Uri _loginUrl = new Uri("/api/Account/Authenticate", UriKind.Relative);
 
@@ -31,13 +32,13 @@ namespace OrchestratorClient
         {
             _client = client;
         }
-        public IFluentHttpClient WithHeaders(Dictionary<string, string> headers)
+        public IFluentHttpClient<OrchestratorClient> WithHeaders(Dictionary<string, string> headers)
         {
             this.Headers = headers;
             return this;
         }
 
-        public IFluentHttpClient WithBasicAuthentication(string tenantName, string username, string password)
+        public IFluentHttpClient<OrchestratorClient> WithBasicAuthentication(string tenantName, string username, string password)
         {
             TenancyName = tenantName;
             Username = username;
@@ -45,9 +46,15 @@ namespace OrchestratorClient
             return this;
         }
 
-        public IFluentHttpClient WithBaseUrl(Uri baseUrl)
+        public IFluentHttpClient<OrchestratorClient> WithBaseUrl(Uri baseUrl)
         {
             this.BaseUrl = baseUrl;
+            return this;
+        }
+
+        public IFluentHttpClient<OrchestratorClient> WithOrganizationUnitId(int organzationUnitId)
+        {
+            OrganzationUnitId = organzationUnitId;
             return this;
         }
 
@@ -87,6 +94,8 @@ namespace OrchestratorClient
             {
                 if (retryLogin)
                 {
+                    if (headers == null)
+                        headers = new Dictionary<string, string>();
                     var token = await GetAccessToken(ct);
                     headers["Authorization"] = "Bearer " + token;
                     return await RequestAsync(serviceUrl, method, content, headers, ct, false);
@@ -116,8 +125,8 @@ namespace OrchestratorClient
                 }))
             {
                 var response = await CreateAndSendMessage(_loginUrl, HttpMethod.Post, content, Headers, ct);
-                JObject responseJson = JObject.Parse(response.Content.ToString());
-                return (string)responseJson["result"];
+                var apiResponse = await ReadBodyAndDeserialize<ApiResponse>(response);
+                return apiResponse.Result;
             }
         }
 
