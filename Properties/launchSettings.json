@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "OrchestratorClient": {
+      "commandName": "Project",
+      "commandLineArgs": "--url \"http://localhost:6234\" -t default -u admin -p 890iop"
+    }
+  }
+}

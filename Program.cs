@@ -1,4 +1,5 @@
-﻿using System;
+﻿using CommandLine;
+using System;
 
 namespace OrchestratorClient
 {
@@ -6,7 +7,14 @@ namespace OrchestratorClient
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("Hello World!");
+            Parser.Default.ParseArguments<Options>(args)
+                .WithParsed<Options>(o =>
+               {
+                   Console.WriteLine(o.BaseUrl);
+                   Console.WriteLine(o.TenantName);
+                   Console.WriteLine(o.Username);
+                   Console.WriteLine(o.Password);
+               });
         }
     }
 }
