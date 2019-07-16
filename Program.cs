@@ -24,14 +24,13 @@ namespace OrchestratorClient
                    baseUrl = o.BaseUrl;
                });
             Console.WriteLine(baseUrl);
-            List <UserDto> users = await  new OrchestratorClient(client)
+            ODataResponse users = await  new OrchestratorClient(client)
                           .WithBasicAuthentication(tenancyName, username, password)
                           .WithBaseUrl(baseUrl)
-                          .GetList<UserDto>(new Uri("/odata/Users", UriKind.Relative), new CancellationToken());
-            foreach (UserDto user in users)
-            {
-                Console.WriteLine(user.Name);
-            }
+                          .Get<ODataResponse>(new Uri("/odata/Users", UriKind.Relative), new CancellationToken());
+            foreach(var user in users.value)
+                Console.WriteLine(user.UserName);
+            
         }
     }
 }

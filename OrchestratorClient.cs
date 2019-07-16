@@ -23,8 +23,11 @@ namespace OrchestratorClient
 
         private class AuthenticationObject
         {
+            [JsonProperty(PropertyName = "tenancyName")]
             public string TenancyName { get; set; }
+            [JsonProperty(PropertyName = "usernameOrEmailAddress")]
             public string Username { get; set; }
+            [JsonProperty(PropertyName = "password")]
             public string Password { get; set; }
         }
 
@@ -163,7 +166,9 @@ namespace OrchestratorClient
         private async Task<T> ReadBodyAndDeserialize<T>(HttpResponseMessage responseMessage) where T : class
         {
             var responseBody = await responseMessage.Content.ReadAsStringAsync();
-            return string.IsNullOrEmpty(responseBody) ? null : JsonConvert.DeserializeObject<T>(responseBody);
+            var jsonSerializerSettings = new JsonSerializerSettings();
+            jsonSerializerSettings.MissingMemberHandling = MissingMemberHandling.Ignore;
+            return string.IsNullOrEmpty(responseBody) ? null : JsonConvert.DeserializeObject<T>(responseBody, jsonSerializerSettings);
         }
     }
 }
