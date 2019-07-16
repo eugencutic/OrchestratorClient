@@ -8,9 +8,9 @@ namespace OrchestratorClient
 {
     interface IFluentHttpClient<T>
     {
-        IFluentHttpClient<T> WithHeaders(Dictionary<string, string> headers);
-        IFluentHttpClient<T> WithBasicAuthentication(string tenantName, string username, string password);
-        IFluentHttpClient<T> WithBaseUrl(Uri baseUrl);
+        T WithHeaders(Dictionary<string, string> headers);
+        T WithBasicAuthentication(string tenantName, string username, string password);
+        T WithBaseUrl(Uri baseUrl);
 
         Task<T> Get<T>(Uri url, CancellationToken ct) where T : class;
         Task<List<T>> GetList<T>(Uri url, CancellationToken ct) where T : class;

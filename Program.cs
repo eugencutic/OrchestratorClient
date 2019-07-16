@@ -26,6 +26,7 @@ namespace OrchestratorClient
             Console.WriteLine(baseUrl);
             ODataResponse users = await  new OrchestratorClient(client)
                           .WithBasicAuthentication(tenancyName, username, password)
+                          .WithOrganizationUnitId(3)
                           .WithBaseUrl(baseUrl)
                           .Get<ODataResponse>(new Uri("/odata/Users", UriKind.Relative), new CancellationToken());
             foreach(var user in users.value)

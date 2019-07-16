@@ -35,13 +35,13 @@ namespace OrchestratorClient
         {
             _client = client;
         }
-        public IFluentHttpClient<OrchestratorClient> WithHeaders(Dictionary<string, string> headers)
+        public OrchestratorClient WithHeaders(Dictionary<string, string> headers)
         {
             this.Headers = headers;
             return this;
         }
 
-        public IFluentHttpClient<OrchestratorClient> WithBasicAuthentication(string tenantName, string username, string password)
+        public OrchestratorClient WithBasicAuthentication(string tenantName, string username, string password)
         {
             TenancyName = tenantName;
             Username = username;
@@ -49,13 +49,13 @@ namespace OrchestratorClient
             return this;
         }
 
-        public IFluentHttpClient<OrchestratorClient> WithBaseUrl(Uri baseUrl)
+        public OrchestratorClient WithBaseUrl(Uri baseUrl)
         {
             this.BaseUrl = baseUrl;
             return this;
         }
 
-        public IFluentHttpClient<OrchestratorClient> WithOrganizationUnitId(int organzationUnitId)
+        public OrchestratorClient WithOrganizationUnitId(int organzationUnitId)
         {
             OrganzationUnitId = organzationUnitId;
             return this;
