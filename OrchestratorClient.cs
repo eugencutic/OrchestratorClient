@@ -116,22 +116,6 @@ namespace OrchestratorClient
                 
                 var response = await CreateAndSendMessage(serviceUrl, method, content, ct);
 
-                //if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
-                //{
-                //if (retryLogin)
-                //{
-                //    if (headers == null)
-                //        headers = new Dictionary<string, string>();
-                //    var token = await GetAccessToken(ct);
-                //    headers["Authorization"] = "Bearer " + token;
-                //    return await RequestAsync(serviceUrl, method, content, headers, ct, false);
-                //}
-                //else
-                //{
-                //    throw new Exception("Authentication failed");
-                //}
-                //}
-
                 if (!response.IsSuccessStatusCode && !(response.StatusCode == System.Net.HttpStatusCode.Unauthorized))
                 {
                     throw new ApiException { StatusCode = (int)response.StatusCode, Content = (StringContent)content };
