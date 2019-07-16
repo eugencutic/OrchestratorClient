@@ -63,12 +63,12 @@ namespace OrchestratorClient
 
         public async Task<T> Get<T>(Uri url, CancellationToken ct = default) where T : class
         {
-            return await RequestAsync<T>(url, HttpMethod.Get, null, Headers, ct);
+            return await RequestAsync<T, T>(url, HttpMethod.Get, null, ct);
         }
 
         public async Task<List<T>> GetList<T>(Uri url, CancellationToken ct = default) where T : class
         {
-            return await RequestAsync<List<T>>(url, HttpMethod.Get, null, Headers, ct);
+            return await RequestAsync<List<T>, T>(url, HttpMethod.Get, null, ct);
         }
 
         public async Task<TResponse> Post<TRequest, TResponse>(Uri url, TRequest body,
@@ -76,45 +76,68 @@ namespace OrchestratorClient
             where TResponse : class
             where TRequest : class
         {
-            using (var content = SerializeContent<TRequest>(body))
-            {
-                return await RequestAsync<TResponse>(url, HttpMethod.Post, content, Headers);
-            }
+            
+            return await RequestAsync<TResponse, TRequest>(url, HttpMethod.Post, body, ct);
+            
         }
 
-        protected async Task<T> RequestAsync<T>(Uri serviceUrl, HttpMethod method, HttpContent content, Dictionary<string, string> headers = null, CancellationToken ct = default)
+        protected async Task<T> RequestAsync<T, TRequest>(Uri serviceUrl, HttpMethod method, TRequest body, CancellationToken ct = default)
             where T : class
         {
-            var response = await RequestAsync(serviceUrl, method, content, headers, ct);
+            Func<Uri, HttpMethod, HttpContent, CancellationToken, Task<HttpResponseMessage>>
+                request = RequestAsync;
+            var response = await RequestAndRetry(() => RequestAsync<TRequest>(serviceUrl, method, body, ct), ct);
+            //var response = await RequestAsync(serviceUrl, method, content, headers, ct);
 
             return await ReadBodyAndDeserialize<T>(response);
         }
 
-        protected async Task<HttpResponseMessage> RequestAsync(Uri serviceUrl, HttpMethod method, HttpContent content, Dictionary<string, string> headers = null, CancellationToken ct = default, bool retryLogin = true)
+        protected async Task<HttpResponseMessage> RequestAndRetry(Func<Task<HttpResponseMessage>> request, CancellationToken ct)
         {
-            var response = await CreateAndSendMessage(serviceUrl, method, content, headers, ct);
+            
+            var response = await request();
             if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
             {
-                if (retryLogin)
-                {
-                    if (headers == null)
-                        headers = new Dictionary<string, string>();
-                    var token = await GetAccessToken(ct);
-                    headers["Authorization"] = "Bearer " + token;
-                    return await RequestAsync(serviceUrl, method, content, headers, ct, false);
-                }
-                else
-                {
-                    throw new Exception("Authentication failed");
-                }
+                if (Headers == null)
+                    Headers = new Dictionary<string, string>();
+                var token = await GetAccessToken(ct);
+                Headers["Authorization"] = "Bearer " + token;
+                response = await request();
+                if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                    throw new Exception("Authentication failed.");
             }
-
-            if (!response.IsSuccessStatusCode)
-            {
-                throw new ApiException { StatusCode = (int)response.StatusCode, Content = (StringContent)content };
-            }
-
             return response;
+        }
+
+        protected async Task<HttpResponseMessage> RequestAsync<TRequest>(Uri serviceUrl, HttpMethod method, TRequest body, CancellationToken ct = default)//, bool retryLogin = true)
+        {
+            using (var content = SerializeContent<TRequest>(body))
+            {
+                
+                var response = await CreateAndSendMessage(serviceUrl, method, content, ct);
+
+                //if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                //{
+                //if (retryLogin)
+                //{
+                //    if (headers == null)
+                //        headers = new Dictionary<string, string>();
+                //    var token = await GetAccessToken(ct);
+                //    headers["Authorization"] = "Bearer " + token;
+                //    return await RequestAsync(serviceUrl, method, content, headers, ct, false);
+                //}
+                //else
+                //{
+                //    throw new Exception("Authentication failed");
+                //}
+                //}
+
+                if (!response.IsSuccessStatusCode && !(response.StatusCode == System.Net.HttpStatusCode.Unauthorized))
+                {
+                    throw new ApiException { StatusCode = (int)response.StatusCode, Content = (StringContent)content };
+                }
+                return response;
+            }
         }
 
         protected async Task<string> GetAccessToken(CancellationToken ct)
@@ -127,7 +150,7 @@ namespace OrchestratorClient
                     Password = this.Password
                 }))
             {
-                var response = await CreateAndSendMessage(_loginUrl, HttpMethod.Post, content, Headers, ct);
+                var response = await CreateAndSendMessage(_loginUrl, HttpMethod.Post, content, ct);
                 var apiResponse = await ReadBodyAndDeserialize<ApiResponse>(response);
                 return apiResponse.Result;
             }
@@ -141,9 +164,7 @@ namespace OrchestratorClient
             return stringContent;
         }
 
-        private async Task<HttpResponseMessage> CreateAndSendMessage(Uri url, HttpMethod method,
-           HttpContent content, Dictionary<string, string> headers = null,
-           CancellationToken ct = default)
+        private async Task<HttpResponseMessage> CreateAndSendMessage(Uri url, HttpMethod method, HttpContent content,CancellationToken ct = default)
         {
             using (var message = new HttpRequestMessage
             {
@@ -152,9 +173,9 @@ namespace OrchestratorClient
                 Content = content,
             })
             {
-                if (headers != null)
+                if (Headers != null)
                 {
-                    foreach (var item in headers)
+                    foreach (var item in Headers)
                     {
                         message.Headers.Add(item.Key, item.Value);
                     }

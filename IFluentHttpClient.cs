@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace OrchestratorClient
 {
-    interface IFluentHttpClient<T>
+    interface IFluentHttpClient<T> where T : IFluentHttpClient<T>
     {
         T WithHeaders(Dictionary<string, string> headers);
         T WithBasicAuthentication(string tenantName, string username, string password);
