@@ -25,11 +25,17 @@ namespace OrchestratorClient
                });
             Console.WriteLine(baseUrl);
 
-            HttpResponseMessage response = await new OrchestratorClient(client)
+            await new OrchestratorClient(client)
                                 .WithBasicAuthentication(tenancyName, username, password)
                                 .WithOrganizationUnitId(1)
                                 .WithBaseUrl(baseUrl)
-                                .UploadPackage(@"C:\Users\eugen.cutic\UiPath Studio Packages\Lesson-2-Practice-1.1.0.1.nupkg");
+                                .DownloadPackage("Lesson-2-Practice-1:1.0.1", @"C:\Users\eugen.cutic\Desktop\Lesson-2-Practice-1.nupkg");
+
+            //HttpResponseMessage response = await new OrchestratorClient(client)
+            //                    .WithBasicAuthentication(tenancyName, username, password)
+            //                    .WithOrganizationUnitId(1)
+            //                    .WithBaseUrl(baseUrl)
+            //                    .UploadPackage(@"C:\Users\eugen.cutic\UiPath Studio Packages\Lesson-2-Practice-1.1.0.1.nupkg");
 
             //ODataResponse users = await  new OrchestratorClient(client)
             //              .WithBasicAuthentication(tenancyName, username, password)

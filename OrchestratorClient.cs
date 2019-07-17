@@ -82,6 +82,30 @@ namespace OrchestratorClient
             
         }
 
+        public async Task DownloadPackage(string key, string path, CancellationToken ct = default)
+        {
+            var response = await CreateAndSendMessage(new Uri($"/odata/Processes/UiPath.Server.Configuration.OData.DownloadPackage(key='{key}')", UriKind.Relative), HttpMethod.Get, null, ct);
+            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                if (Headers == null)
+                    Headers = new Dictionary<string, string>();
+                var token = await GetAccessToken(ct);
+                Headers["Authorization"] = "Bearer " + token;
+                response = await CreateAndSendMessage(new Uri($"/odata/Processes/UiPath.Server.Configuration.OData.DownloadPackage(key='{key}')", UriKind.Relative), HttpMethod.Get, null, ct);
+                if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                    throw new Exception("Authentication failed");
+            }
+
+            using (var responseStream = await response.Content.ReadAsStreamAsync())
+            {
+                using (var fileStream = new FileStream(path, FileMode.Create, FileAccess.Write))
+                {
+                    await responseStream.CopyToAsync(fileStream);
+                }
+            }
+
+        }
+
         public async Task<HttpResponseMessage> UploadPackage(string path, CancellationToken ct = default)
         {
             var content = SerializePackageContent(path);
