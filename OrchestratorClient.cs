@@ -2,6 +2,7 @@
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
@@ -79,6 +80,48 @@ namespace OrchestratorClient
             
             return await RequestAsync<TResponse, TRequest>(url, HttpMethod.Post, body, ct);
             
+        }
+
+        public async Task<HttpResponseMessage> UploadPackage(string path, CancellationToken ct = default)
+        {
+            var content = SerializePackageContent(path);
+            var response = await CreateAndSendMessage(new Uri("/odata/Processes/UiPath.Server.Configuration.OData.UploadPackage", UriKind.Relative), HttpMethod.Post, content, ct);
+
+            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                if (Headers == null)
+                    Headers = new Dictionary<string, string>();
+                var token = await GetAccessToken(ct);
+                Headers["Authorization"] = "Bearer " + token;
+                content = SerializePackageContent(path);
+                response = await CreateAndSendMessage(new Uri("/odata/Processes/UiPath.Server.Configuration.OData.UploadPackage", UriKind.Relative), HttpMethod.Post, content, ct);
+                if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                    throw new Exception("Authentication failed");
+            }
+
+            if (!response.IsSuccessStatusCode)
+                throw new ApiException { Content = (StringContent)response.Content, StatusCode = (int)response.StatusCode };
+
+            return response;
+        }
+
+        public MultipartFormDataContent SerializePackageContent(string path)
+        {
+            try
+            {
+                using (var package = File.OpenRead(path))
+                {
+                    var streamContent = new StreamContent(File.OpenRead(path));
+                    var multipartContent = new MultipartFormDataContent();
+                    multipartContent.Add(streamContent, "file", path);
+                    return multipartContent;
+                }
+            }
+            catch(IOException)
+            {
+                Console.WriteLine("File not found");
+            }
+            return null;
         }
 
         protected async Task<T> RequestAsync<T, TRequest>(Uri serviceUrl, HttpMethod method, TRequest body, CancellationToken ct = default)
