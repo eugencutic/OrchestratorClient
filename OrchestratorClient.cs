@@ -82,51 +82,42 @@ namespace OrchestratorClient
             
         }
 
-        public async Task DownloadPackage(string key, string path, CancellationToken ct = default)
+        public async Task<HttpResponseMessage> DownloadPackage(string key, string path, CancellationToken ct = default)
         {
-            var response = await CreateAndSendMessage(new Uri($"/odata/Processes/UiPath.Server.Configuration.OData.DownloadPackage(key='{key}')", UriKind.Relative), HttpMethod.Get, null, ct);
-            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            return await RequestAndRetry(async () =>
             {
-                if (Headers == null)
-                    Headers = new Dictionary<string, string>();
-                var token = await GetAccessToken(ct);
-                Headers["Authorization"] = "Bearer " + token;
-                response = await CreateAndSendMessage(new Uri($"/odata/Processes/UiPath.Server.Configuration.OData.DownloadPackage(key='{key}')", UriKind.Relative), HttpMethod.Get, null, ct);
-                if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
-                    throw new Exception("Authentication failed");
-            }
-
-            using (var responseStream = await response.Content.ReadAsStreamAsync())
-            {
-                using (var fileStream = new FileStream(path, FileMode.Create, FileAccess.Write))
+                using (var response = await CreateAndSendMessage(
+                    new Uri($"/odata/Processes/UiPath.Server.Configuration.OData.DownloadPackage(key='{key}')", UriKind.Relative),
+                    HttpMethod.Get, null, ct))
                 {
-                    await responseStream.CopyToAsync(fileStream);
+                    if(response.IsSuccessStatusCode)
+                    {
+                        using (var responseStream = await response.Content.ReadAsStreamAsync())
+                        {
+                            using (var fileStream = new FileStream(path, FileMode.Create, FileAccess.Write))
+                            {
+                                await responseStream.CopyToAsync(fileStream);
+                            }
+                        }
+                    }
+                    
+                    return response;
                 }
-            }
-
+            }, ct);
         }
 
         public async Task<HttpResponseMessage> UploadPackage(string path, CancellationToken ct = default)
         {
-            var content = SerializePackageContent(path);
-            var response = await CreateAndSendMessage(new Uri("/odata/Processes/UiPath.Server.Configuration.OData.UploadPackage", UriKind.Relative), HttpMethod.Post, content, ct);
-
-            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            return await RequestAndRetry(async () =>
             {
-                if (Headers == null)
-                    Headers = new Dictionary<string, string>();
-                var token = await GetAccessToken(ct);
-                Headers["Authorization"] = "Bearer " + token;
-                content = SerializePackageContent(path);
-                response = await CreateAndSendMessage(new Uri("/odata/Processes/UiPath.Server.Configuration.OData.UploadPackage", UriKind.Relative), HttpMethod.Post, content, ct);
-                if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
-                    throw new Exception("Authentication failed");
-            }
+                using (var content = SerializePackageContent(path))
+                {
+                    var response = await CreateAndSendMessage(new Uri("/odata/Processes/UiPath.Server.Configuration.OData.UploadPackage", UriKind.Relative), HttpMethod.Post, content, ct);
 
-            if (!response.IsSuccessStatusCode)
-                throw new ApiException { Content = (StringContent)response.Content, StatusCode = (int)response.StatusCode };
-
-            return response;
+                    return response;
+                }
+            }, ct);
+            
         }
 
         public MultipartFormDataContent SerializePackageContent(string path)
@@ -135,16 +126,23 @@ namespace OrchestratorClient
             {
                 using (var package = File.OpenRead(path))
                 {
-                    var streamContent = new StreamContent(File.OpenRead(path));
-                    var multipartContent = new MultipartFormDataContent();
-                    multipartContent.Add(streamContent, "file", path);
-                    return multipartContent;
+                    using (var streamContent = new StreamContent(package))
+                    {
+                        var multipartContent = new MultipartFormDataContent
+                        {
+                            { streamContent, "file", path }
+                        };
+
+                        return multipartContent;
+                    }
+                    
                 }
             }
             catch(IOException)
             {
                 Console.WriteLine("File not found");
             }
+
             return null;
         }
 
@@ -154,10 +152,28 @@ namespace OrchestratorClient
             Func<Uri, HttpMethod, HttpContent, CancellationToken, Task<HttpResponseMessage>>
                 request = RequestAsync;
             var response = await RequestAndRetry(() => RequestAsync<TRequest>(serviceUrl, method, body, ct), ct);
-            //var response = await RequestAsync(serviceUrl, method, content, headers, ct);
 
             return await ReadBodyAndDeserialize<T>(response);
         }
+
+        //protected async Task<T> ExecuteWithRetry<T>(Func<Task<T>> func)
+        //{
+        //    try
+        //    {
+        //        return await func();
+        //    }
+        //    catch (HttpRequestException ex)
+        //    {
+        //        if (ex.Data != null) // if unauthorized
+        //        {
+        //            var token = await GetAccessToken(CancellationToken.None);
+
+        //            return await func();
+        //        }
+        //    }
+
+        //    return default;
+        //}
 
         protected async Task<HttpResponseMessage> RequestAndRetry(Func<Task<HttpResponseMessage>> request, CancellationToken ct)
         {
@@ -180,7 +196,6 @@ namespace OrchestratorClient
         {
             using (var content = SerializeContent<TRequest>(body))
             {
-                
                 var response = await CreateAndSendMessage(serviceUrl, method, content, ct);
 
                 if (!response.IsSuccessStatusCode && !(response.StatusCode == System.Net.HttpStatusCode.Unauthorized))
@@ -215,7 +230,7 @@ namespace OrchestratorClient
             return stringContent;
         }
 
-        private async Task<HttpResponseMessage> CreateAndSendMessage(Uri url, HttpMethod method, HttpContent content,CancellationToken ct = default)
+        private async Task<HttpResponseMessage> CreateAndSendMessage(Uri url, HttpMethod method, HttpContent content, CancellationToken ct = default)
         {
             using (var message = new HttpRequestMessage
             {
@@ -231,7 +246,7 @@ namespace OrchestratorClient
                         message.Headers.Add(item.Key, item.Value);
                     }
                 }
-                return await _client.SendAsync(message, ct);
+                return await _client.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, ct);
             }
         }
 
